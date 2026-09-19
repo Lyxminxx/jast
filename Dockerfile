@@ -9,11 +9,11 @@ WORKDIR /app
 # Copy your project files
 COPY . .
 
-# Tell uv to sync/install all dependencies into the system environment
-RUN uv sync --system --no-dev
+# Tell uv to sync dependencies (this creates a clean .venv inside the container)
+RUN uv sync --no-dev
 
-# Collect static files for the admin panel
-RUN python manage.py collectstatic --noinput
+# Collect static files for the admin panel using uv run
+RUN uv run python manage.py collectstatic --noinput
 
 # Create the data directory for SQLite
 RUN mkdir -p data
@@ -21,5 +21,5 @@ RUN mkdir -p data
 # Expose the port
 EXPOSE 8000
 
-# Start Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
+# Start Gunicorn using uv run
+CMD ["uv", "run", "gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
