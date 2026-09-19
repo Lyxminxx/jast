@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Transaction</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .card { background: #f4f4f5; padding: 20px; border-radius: 8px; }
+        button { background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
+        .cancel { background: #e4e4e7; color: black; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Editing: {{ transaction.title }}</h2>
+    <div class="card">
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Save Changes</button>
+            <a href="{% url 'home' %}" class="cancel">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>
