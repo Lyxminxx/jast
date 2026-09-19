@@ -26,7 +26,12 @@ SECRET_KEY = 'django-insecure-m#==%hz74d192o)4!#_!dpz%$yox@!hkabc9)pggkkiuvc7((q
 DEBUG = False
 
 ALLOWED_HOSTS = ['*']
-
+CSRF_TRUSTED_ORIGINS = [
+    'https://jast.maddiemightcry.xyz',
+    'http://100.104.132.118:8000',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
 
 # Application definition
 
