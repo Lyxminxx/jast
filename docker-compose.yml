@@ -1,6 +1,7 @@
 name: jast-tracker
 services:
   web:
+    build: .
     image: jast:local
     pull_policy: never
     ports:
