@@ -4,8 +4,11 @@ from django.db import (
 from django.utils import(
     timezone
 )
+from django.contrib.auth.models import User
 
 class Transaction(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
     title = models.CharField(max_length=255)
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)

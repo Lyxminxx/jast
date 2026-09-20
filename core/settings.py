@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
+    'ninja',
 ]
 
 MIDDLEWARE = [
@@ -133,3 +134,9 @@ MAILERS = {
     },
 }
 STATIC_ROOT = BASE_DIR / "staticfiles"
+LOGIN_REDIRECT_URL = 'home'
+LOGIN_URL = 'login'
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]

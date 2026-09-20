@@ -1,25 +1,30 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DIME Statistics</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAST Statistics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-        .nav { margin-bottom: 20px; }
-        .nav a { background: #e4e4e7; color: black; text-decoration: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }
-        .filters { margin-bottom: 30px; display: flex; gap: 10px; }
-        .filters a { padding: 6px 12px; border-radius: 4px; text-decoration: none; border: 1px solid #d4d4d8; color: black; }
-        .filters a.active { background: #18181b; color: white; border-color: #18181b; }
-        .chart-container { position: relative; height: 400px; width: 100%; margin-top: 20px; }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <div class="nav">
-        <a href="{% url 'home' %}">← Back to Tracker</a>
-    </div>
+
+    <!-- Top Navbar -->
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="navbar-brand">JAST</a>
+        <div class="navbar-actions">
+            <a href="{% url 'home' %}" class="btn btn-nav">← Back to Dashboard</a>
+            <form action="{% url 'logout' %}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to log out?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-logout">Logout</button>
+            </form>
+        </div>
+    </nav>
 
     <h1>Spending Statistics</h1>
 
+    <!-- Time Period Filters -->
     <div class="filters">
         <a href="?filter=week" class="{% if current_filter == 'week' %}active{% endif %}">Last 7 Days</a>
         <a href="?filter=month" class="{% if current_filter == 'month' %}active{% endif %}">Last 30 Days</a>
@@ -27,19 +32,20 @@
         <a href="?filter=all" class="{% if current_filter == 'all' %}active{% endif %}">All Time</a>
     </div>
 
+    <!-- Chart Canvas -->
     <div class="chart-container">
         <canvas id="categoryChart"></canvas>
     </div>
 
     <script>
-        // Parse the JSON data passed from Django
         const labels = JSON.parse('{{ labels|safe }}');
         const data = JSON.parse('{{ data|safe }}');
 
         const ctx = document.getElementById('categoryChart').getContext('2d');
         
         if (data.length === 0) {
-            ctx.font = "16px system-ui";
+            ctx.font = "16px system-ui, sans-serif";
+            ctx.fillStyle = "#a89984"; // Gruvbox muted text
             ctx.fillText("No expenses logged for this time period.", 10, 50);
         } else {
             new Chart(ctx, {
@@ -49,16 +55,33 @@
                     datasets: [{
                         label: 'Amount Spent (kr)',
                         data: data,
-                        // A simple color palette
-                        backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'],
-                        borderWidth: 1
+                        backgroundColor: [
+                            '#fabd2f', // Gruvbox Yellow
+                            '#fe8019', // Gruvbox Orange
+                            '#fb4934', // Gruvbox Red
+                            '#b8bb26', // Gruvbox Green
+                            '#83a598', // Gruvbox Blue
+                            '#d3869b', // Gruvbox Purple
+                            '#8ec07c'  // Gruvbox Aqua
+                        ],
+                        borderColor: '#3c3836', // Card background color for clean slice gaps
+                        borderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'right' }
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                color: '#ebdbb2', // Gruvbox primary text
+                                font: {
+                                    family: 'system-ui, -apple-system, sans-serif',
+                                    size: 13
+                                }
+                            }
+                        }
                     }
                 }
             });
