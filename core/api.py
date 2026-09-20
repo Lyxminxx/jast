@@ -1,15 +1,94 @@
-from ninja import NinjaAPI, Schema
-from typing import List
-from datetime import date
 from decimal import Decimal
+from datetime import datetime, timedelta, date
+from typing import List
+import jwt
+from django.conf import settings
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+from ninja import NinjaAPI, Schema
+from ninja.errors import HttpError
+from ninja.security import HttpBearer
 from core.models import Transaction, Category
 
-api = NinjaAPI()
+api = NinjaAPI(title="JAST API", version="1.0.0")
 
-# --- Schemas (Data validation for Flutter) ---
+
+class JWTAuth(HttpBearer):
+    def authenticate(self, request, token):
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            if payload.get("type") != "access":
+                return None
+            user = User.objects.get(id=payload["user_id"])
+            return user
+        except (jwt.PyJWTError, User.DoesNotExist):
+            return None
+
+
+auth = JWTAuth()
+
+
+def generate_access_token(user: User) -> str:
+    payload = {
+        "user_id": user.id,
+        "type": "access",
+        "exp": datetime.utcnow() + timedelta(minutes=30),
+        "iat": datetime.utcnow(),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+def generate_refresh_token(user: User) -> str:
+    payload = {
+        "user_id": user.id,
+        "type": "refresh",
+        "exp": datetime.utcnow() + timedelta(days=14),
+        "iat": datetime.utcnow(),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+# Schemas
+class RegisterIn(Schema):
+    username: str
+    password: str
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class LoginIn(Schema):
+    username: str
+    password: str
+
+
+class RefreshIn(Schema):
+    refresh_token: str
+
+
+class RefreshOut(Schema):
+    access_token: str
+
+
+class UserOut(Schema):
+    id: int
+    username: str
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+class TokenOut(Schema):
+    access_token: str
+    refresh_token: str
+    user: UserOut
+
+
 class CategorySchema(Schema):
     id: int
     name: str
+
 
 class TransactionOut(Schema):
     id: int
@@ -18,27 +97,111 @@ class TransactionOut(Schema):
     date: date
     category: CategorySchema | None = None
 
+
 class TransactionIn(Schema):
     title: str
     amount: Decimal
     date: date
     category_id: int | None = None
 
-# --- Endpoints ---
-@api.get("/transactions", response=List[TransactionOut])
-def list_transactions(request):
-    return Transaction.objects.select_related('category').all().order_by('-date')
 
-@api.post("/transactions", response=TransactionOut)
+class SuccessResponse(Schema):
+    success: bool
+
+
+# Endpoints
+@api.post("/auth/register", response=TokenOut)
+def register(request, payload: RegisterIn):
+    if User.objects.filter(username=payload.username).exists():
+        raise HttpError(400, "Username already taken")
+
+    user = User.objects.create_user(
+        username=payload.username,
+        password=payload.password,
+        email=payload.email or "",
+        first_name=payload.first_name or "",
+        last_name=payload.last_name or "",
+    )
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": user,
+    }
+
+
+@api.post("/auth/login", response=TokenOut)
+def login_view(request, payload: LoginIn):
+    user = authenticate(username=payload.username, password=payload.password)
+    if user is None:
+        raise HttpError(401, "Invalid username or password")
+
+    access_token = generate_access_token(user)
+    refresh_token = generate_refresh_token(user)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": user,
+    }
+
+
+@api.post("/auth/refresh", response=RefreshOut)
+def refresh_token_view(request, payload: RefreshIn):
+    try:
+        data = jwt.decode(payload.refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
+        if data.get("type") != "refresh":
+            raise HttpError(401, "Invalid token type")
+        user = User.objects.get(id=data["user_id"])
+        new_access_token = generate_access_token(user)
+        return {"access_token": new_access_token}
+    except (jwt.PyJWTError, User.DoesNotExist):
+        raise HttpError(401, "Invalid or expired refresh token")
+
+
+@api.get("/auth/me", response=UserOut, auth=auth)
+def get_current_user(request):
+    return request.auth
+
+
+@api.get("/transactions", response=List[TransactionOut], auth=auth)
+def list_transactions(request):
+    return (
+        Transaction.objects.filter(user=request.auth)
+        .select_related("category")
+        .order_by("-date")
+    )
+
+
+@api.post("/transactions", response=TransactionOut, auth=auth)
 def create_transaction(request, payload: TransactionIn):
-    transaction = Transaction.objects.create(
+    return Transaction.objects.create(
+        user=request.auth,
         title=payload.title,
         amount=payload.amount,
         date=payload.date,
-        category_id=payload.category_id
+        category_id=payload.category_id,
     )
+
+
+@api.put("/transactions/{transaction_id}", response=TransactionOut, auth=auth)
+def update_transaction(request, transaction_id: int, payload: TransactionIn):
+    transaction = get_object_or_404(Transaction, id=transaction_id, user=request.auth)
+    transaction.title = payload.title
+    transaction.amount = payload.amount
+    transaction.date = payload.date
+    transaction.category_id = payload.category_id
+    transaction.save()
     return transaction
 
-@api.get("/categories", response=List[CategorySchema])
+
+@api.delete("/transactions/{transaction_id}", response=SuccessResponse, auth=auth)
+def delete_transaction(request, transaction_id: int):
+    transaction = get_object_or_404(Transaction, id=transaction_id, user=request.auth)
+    transaction.delete()
+    return {"success": True}
+
+
+@api.get("/categories", response=List[CategorySchema], auth=auth)
 def list_categories(request):
     return Category.objects.all()

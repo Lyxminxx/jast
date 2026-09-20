@@ -8,5 +8,6 @@ dependencies = [
     "django>=6.1.1",
     "django-ninja>=1.7.1",
     "gunicorn>=26.2.0",
+    "pyjwt>=2.14.0",
     "whitenoise>=6.12.0",
 ]
