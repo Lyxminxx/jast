@@ -108,6 +108,13 @@ class TransactionIn(Schema):
 class SuccessResponse(Schema):
     success: bool
 
+class UserUpdateIn(Schema):
+    username: str | None = None
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    password: str | None = None
+
 
 # Endpoints
 @api.post("/auth/register", response=TokenOut)
@@ -144,6 +151,34 @@ def login_view(request, payload: LoginIn):
         "refresh_token": refresh_token,
         "user": user,
     }
+
+@api.put("/auth/me", response=UserOut, auth=auth)
+def update_current_user(request, payload: UserUpdateIn):
+    user = request.auth
+
+    if payload.username and payload.username != user.username:
+        if User.objects.filter(username=payload.username).exclude(id=user.id).exists():
+            raise HttpError(400, "Username already taken")
+        user.username = payload.username
+
+    if payload.email is not None:
+        user.email = payload.email
+    if payload.first_name is not None:
+        user.first_name = payload.first_name
+    if payload.last_name is not None:
+        user.last_name = payload.last_name
+    if payload.password:
+        user.set_password(payload.password)
+
+    user.save()
+    return user
+
+
+@api.delete("/auth/me", response=SuccessResponse, auth=auth)
+def delete_current_user(request):
+    user = request.auth
+    user.delete()
+    return {"success": True}
 
 
 @api.post("/auth/refresh", response=RefreshOut)
