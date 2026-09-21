@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 
+import os
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,14 +28,23 @@ SECRET_KEY = 'django-insecure-m#==%hz74d192o)4!#_!dpz%$yox@!hkabc9)pggkkiuvc7((q
 DEBUG = False
 
 ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = [
-    'https://jast.maddiemightcry.xyz',
-    'http://100.104.132.118:8000',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-]
 
-# Application definition
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", 
+    "jastapi.mydomain.com,jast.mydomain.com,backend,localhost,127.0.0.1"
+).split(",")
+
+csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
+
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        "https://jast.mydomain.com",
+        "https://jastapi.mydomain.com",
+    ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
