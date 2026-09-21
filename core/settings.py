@@ -55,12 +55,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'core',
     'ninja',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -69,6 +71,17 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
+
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_env:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "https://jast.mydomain.com",
+    ]
+
+# Allow credentials (cookies/headers)
+CORS_ALLOW_CREDENTIALS = True
 
 TEMPLATES = [
     {
