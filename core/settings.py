@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
-
+from datetime import timedelta
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -168,3 +168,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 1209600  # Persist session for 2 weeks (in seconds)
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
+NINJA_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=14),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+}
