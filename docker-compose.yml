@@ -8,4 +8,8 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    environment:
+      JWT_ACCESS_DAYS: "14"
+      JWT_REFRESH_DAYS: "30"
+      # DJANGO_SECRET_KEY: "..."   # else auto-generated into ./data/secret_key.txt
     restart: unless-stopped

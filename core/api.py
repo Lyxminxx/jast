@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, timezone, date
 from typing import List
 import jwt
 from django.conf import settings
@@ -22,31 +22,30 @@ class JWTAuth(HttpBearer):
                 return None
             user = User.objects.get(id=payload["user_id"])
             return user
-        except (jwt.PyJWTError, User.DoesNotExist):
+        except (jwt.PyJWTError, User.DoesNotExist, KeyError):
             return None
 
 
 auth = JWTAuth()
 
 
-def generate_access_token(user: User) -> str:
+def _generate_token(user: User, token_type: str, lifetime: timedelta) -> str:
+    now = datetime.now(timezone.utc)
     payload = {
         "user_id": user.id,
-        "type": "access",
-        "exp": datetime.utcnow() + timedelta(minutes=30),
-        "iat": datetime.utcnow(),
+        "type": token_type,
+        "exp": now + lifetime,
+        "iat": now,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+def generate_access_token(user: User) -> str:
+    return _generate_token(user, "access", settings.JWT_ACCESS_TOKEN_LIFETIME)
 
 
 def generate_refresh_token(user: User) -> str:
-    payload = {
-        "user_id": user.id,
-        "type": "refresh",
-        "exp": datetime.utcnow() + timedelta(days=14),
-        "iat": datetime.utcnow(),
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    return _generate_token(user, "refresh", settings.JWT_REFRESH_TOKEN_LIFETIME)
 
 
 # Schemas
@@ -190,7 +189,7 @@ def refresh_token_view(request, payload: RefreshIn):
         user = User.objects.get(id=data["user_id"])
         new_access_token = generate_access_token(user)
         return {"access_token": new_access_token}
-    except (jwt.PyJWTError, User.DoesNotExist):
+    except (jwt.PyJWTError, User.DoesNotExist, KeyError):
         raise HttpError(401, "Invalid or expired refresh token")
 
 

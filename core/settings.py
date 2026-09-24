@@ -17,17 +17,43 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DATA_DIR = BASE_DIR / 'data'
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
+def _read_secret_key() -> str:
+    """Prefer DJANGO_SECRET_KEY, else a key persisted in the (gitignored) data dir."""
+    env_key = os.getenv('DJANGO_SECRET_KEY', '').strip()
+    if env_key:
+        return env_key
+
+    key_file = DATA_DIR / 'secret_key.txt'
+    if key_file.exists():
+        stored = key_file.read_text().strip()
+        if stored:
+            return stored
+
+    from django.core.management.utils import get_random_secret_key
+
+    generated = get_random_secret_key()
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    key_file.write_text(generated)
+    key_file.chmod(0o600)
+    return generated
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-m#==%hz74d192o)4!#_!dpz%$yox@!hkabc9)pggkkiuvc7((q'
+# This also signs every JWT, so leaking it means anyone can forge a token.
+SECRET_KEY = _read_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+# Lifetimes for the hand-rolled JWTs issued in core/api.py.
+JWT_ACCESS_TOKEN_LIFETIME = timedelta(days=int(os.getenv('JWT_ACCESS_DAYS', '14')))
+JWT_REFRESH_TOKEN_LIFETIME = timedelta(days=int(os.getenv('JWT_REFRESH_DAYS', '30')))
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS", 
@@ -107,7 +133,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'data' / 'db.sqlite3',
+        'NAME': DATA_DIR / 'db.sqlite3',
     }
 }
 
@@ -168,7 +194,3 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 1209600  # Persist session for 2 weeks (in seconds)
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
-NINJA_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=14),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-}
